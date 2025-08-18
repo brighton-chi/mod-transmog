@@ -30,9 +30,6 @@ enum TransmogSettings
     SETTING_HIDE_TRANSMOG             = 0,
     SETTING_RETROACTIVE_CHECK         = 1,
     SETTING_VENDOR_INTERFACE          = 2,
-
-    // Subscriptions
-    SETTING_TRANSMOG_MEMBERSHIP_LEVEL = 0
 };
 
 enum MixedWeaponSettings
@@ -93,14 +90,6 @@ const uint32 AllArmorTiers[4] =
     ITEM_SUBCLASS_ARMOR_CLOTH
 };
 
-enum PlusFeatures
-{
-    PLUS_FEATURE_GREY_ITEMS,
-    PLUS_FEATURE_LEGENDARY_ITEMS,
-    PLUS_FEATURE_PET,
-    PLUS_FEATURE_SKIP_LEVEL_REQ
-};
-
 const uint32 TMOG_VENDOR_CREATURE_ID = 190010;
 
 class Transmogrification
@@ -113,10 +102,8 @@ public:
     typedef std::unordered_map<ObjectGuid, transmog2Data> transmogMap;
     typedef std::unordered_map<uint32, std::vector<uint32>> collectionCacheMap;
     typedef std::unordered_map<uint32, std::string> searchStringMap;
-    typedef std::unordered_map<uint32, std::vector<uint32>> transmogPlusData;
     typedef std::unordered_map<ObjectGuid, uint8> selectedSlotMap;
-    
-    transmogPlusData plusDataMap;
+
     transmogMap entryMap; // entryMap[pGUID][iGUID] = entry
     transmogData dataMap; // dataMap[iGUID] = pGUID
     collectionCacheMap collectionCache;
@@ -273,15 +260,7 @@ public:
     bool IsInvTypeMismatchAllowed (const ItemTemplate *source, const ItemTemplate *target) const;
     bool IsSubclassMismatchAllowed (Player *player, const ItemTemplate *source, const ItemTemplate *target) const;
 
-    // Transmog Plus
-    bool IsTransmogPlusEnabled;
-    [[nodiscard]] bool IsPlusFeatureEligible(ObjectGuid const& playerGuid, uint32 feature) const;
-    [[nodiscard]] uint32 GetPlayerMembershipLevel(Player* player) const { return player->GetPlayerSetting("acore_cms_subscriptions", SETTING_TRANSMOG_MEMBERSHIP_LEVEL).value; };
-    [[nodiscard]] bool IgnoreLevelRequirement(ObjectGuid const& playerGuid) const { return IgnoreReqLevel || IsPlusFeatureEligible(playerGuid, PLUS_FEATURE_SKIP_LEVEL_REQ); }
-
-    uint32 PetSpellId;
-    uint32 PetEntry;
-    [[nodiscard]] bool IsTransmogVendor(uint32 entry) const { return entry == TMOG_VENDOR_CREATURE_ID || entry == PetEntry; };
+    [[nodiscard]] bool IsTransmogVendor(uint32 entry) const { return entry == TMOG_VENDOR_CREATURE_ID};
 };
 #define sTransmogrification Transmogrification::instance()
 
