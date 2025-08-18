@@ -996,10 +996,6 @@ class PS_Transmogrification : public PlayerScript
 private:
     void AddToDatabase(Player* player, Item* item)
     {
-        if (item->HasFlag(ITEM_FIELD_FLAGS, ITEM_FIELD_FLAG_BOP_TRADEABLE) && !sTransmogrification->GetAllowTradeable())
-            return;
-        if (item->HasFlag(ITEM_FIELD_FLAGS, ITEM_FIELD_FLAG_REFUNDABLE))
-            return;
         ItemTemplate const* itemTemplate = item->GetTemplate();
         AddToDatabase(player, itemTemplate);
     }
@@ -1068,7 +1064,7 @@ public:
     {
         if (!sT->GetUseCollectionSystem() || !item || typeid(*item) != typeid(Item))
             return;
-        if (item->GetTemplate()->Bonding == ItemBondingType::BIND_WHEN_PICKED_UP || item->IsSoulBound())
+        if (item)
         {
             AddToDatabase(player, item);
         }
@@ -1078,7 +1074,7 @@ public:
     {
         if (!sT->GetUseCollectionSystem())
             return;
-        if (item->GetTemplate()->Bonding == ItemBondingType::BIND_WHEN_PICKED_UP || item->IsSoulBound())
+        if (item)
         {
             AddToDatabase(player, item);
         }
@@ -1088,7 +1084,7 @@ public:
     {
         if (!sT->GetUseCollectionSystem())
             return;
-        if (item->GetTemplate()->Bonding == ItemBondingType::BIND_WHEN_PICKED_UP || item->IsSoulBound())
+        if (item)
         {
             AddToDatabase(player, item);
         }

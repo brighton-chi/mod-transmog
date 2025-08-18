@@ -286,6 +286,8 @@ public:
         }
 
         Player* player = PlayerIdentifier::FromSelf(handler)->GetConnectedPlayer();
+
+        return true;
     };
 
     static bool HandleInterfaceOption(ChatHandler* handler, bool enable)

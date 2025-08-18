@@ -597,9 +597,6 @@ TransmogAcoreStrings Transmogrification::Transmogrify(Player* player, Item* item
         itemTransmogrified->SetNotRefundable(player);
         itemTransmogrified->ClearSoulboundTradeable(player);
 
-        if (itemTransmogrifier->GetTemplate()->Bonding == BIND_WHEN_EQUIPPED || itemTransmogrifier->GetTemplate()->Bonding == BIND_WHEN_USE)
-            itemTransmogrifier->SetBinding(true);
-
         itemTransmogrifier->SetOwnerGUID(player->GetGUID());
         itemTransmogrifier->SetNotRefundable(player);
         itemTransmogrifier->ClearSoulboundTradeable(player);
@@ -823,9 +820,6 @@ bool Transmogrification::SuitableForTransmogrification(Player* player, ItemTempl
             return false;
     }
 
-    if (!IgnoreLevelRequirement(player->GetGUID()) && player->GetLevel() < proto->RequiredLevel)
-        return false;
-
     if (AllowLowerTiers && TierAvailable(player, 0, proto->SubClass))
         return true;
 
@@ -911,9 +905,6 @@ bool Transmogrification::SuitableForTransmogrification(ObjectGuid guid, ItemTemp
         if (playerSkillValues[proto->RequiredSkill] < proto->RequiredSkillRank)
             return false;
     }
-
-    if (!IgnoreLevelRequirement(guid) && playerLevel < proto->RequiredLevel)
-        return false;
 
     if (AllowLowerTiers && TierAvailable(NULL, playerGuid, proto->SubClass))
         return true;
@@ -1131,7 +1122,6 @@ void Transmogrification::LoadConfig(bool reload)
     AllowLegendary = sConfigMgr->GetOption<bool>("Transmogrification.AllowLegendary", false);
     AllowArtifact = sConfigMgr->GetOption<bool>("Transmogrification.AllowArtifact", false);
     AllowHeirloom = sConfigMgr->GetOption<bool>("Transmogrification.AllowHeirloom", true);
-    AllowTradeable = sConfigMgr->GetOption<bool>("Transmogrification.AllowTradeable", false);
 
     AllowMixedArmorTypes = sConfigMgr->GetOption<bool>("Transmogrification.AllowMixedArmorTypes", false);
     AllowLowerTiers = sConfigMgr->GetOption<bool>("Transmogrification.AllowLowerTiers", false);
@@ -1249,10 +1239,6 @@ bool Transmogrification::GetAllowHiddenTransmog() const
 bool Transmogrification::GetHiddenTransmogIsFree() const
 {
     return HiddenTransmogIsFree;
-}
-bool Transmogrification::GetAllowTradeable() const
-{
-    return AllowTradeable;
 }
 
 bool Transmogrification::GetTrackUnusableItems() const

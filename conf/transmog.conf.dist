@@ -167,10 +167,6 @@ Transmogrification.TokenAmount = 1
 #        Description: Allow heirloom quality items to be used as source and target items
 #        Default:    1
 #
-#    Transmogrification.AllowTradeable
-#        Description: Allow items that are tradeable (i.e. During 2 hour grace period during an instance)
-#        Default:    0
-#
 #    Transmogrification.AllowMixedArmorTypes
 #        Description: Allow cloth items to be transmogrified with plate for example
 #        Default:    0
@@ -236,7 +232,6 @@ Transmogrification.AllowEpic = 1
 Transmogrification.AllowLegendary = 0
 Transmogrification.AllowArtifact = 0
 Transmogrification.AllowHeirloom = 1
-Transmogrification.AllowTradeable = 0
 
 Transmogrification.AllowMixedArmorTypes = 0
 Transmogrification.AllowLowerTiers = 0

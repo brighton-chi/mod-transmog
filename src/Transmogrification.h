@@ -161,7 +161,6 @@ public:
     bool AllowLegendary;
     bool AllowArtifact;
     bool AllowHeirloom;
-    bool AllowTradeable;
 
     bool AllowMixedArmorTypes;
     bool AllowLowerTiers;
@@ -238,7 +237,6 @@ public:
     uint32 GetTransmogNpcText() const;
     bool GetEnableSetInfo() const;
     uint32 GetSetNpcText() const;
-    bool GetAllowTradeable() const;
 
     bool GetUseCollectionSystem() const;
     bool GetUseVendorInterface() const;
@@ -260,8 +258,9 @@ public:
     bool IsInvTypeMismatchAllowed (const ItemTemplate *source, const ItemTemplate *target) const;
     bool IsSubclassMismatchAllowed (Player *player, const ItemTemplate *source, const ItemTemplate *target) const;
 
-    [[nodiscard]] bool IsTransmogVendor(uint32 entry) const { return entry == TMOG_VENDOR_CREATURE_ID};
+    [[nodiscard]] bool IsTransmogVendor(uint32 entry) const { return entry == TMOG_VENDOR_CREATURE_ID; }
 };
+
 #define sTransmogrification Transmogrification::instance()
 
 #endif
