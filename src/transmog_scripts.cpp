@@ -1043,6 +1043,7 @@ public:
     PS_Transmogrification() : PlayerScript("Player_Transmogrify", {
         PLAYERHOOK_ON_EQUIP,
         PLAYERHOOK_ON_LOOT_ITEM,
+        PLAYERHOOK_ON_STORE_NEW_ITEM,
         PLAYERHOOK_ON_CREATE_ITEM,
         PLAYERHOOK_ON_AFTER_STORE_OR_EQUIP_NEW_ITEM,
         PLAYERHOOK_ON_PLAYER_COMPLETE_QUEST,
@@ -1063,6 +1064,16 @@ public:
     void OnPlayerLootItem(Player* player, Item* item, uint32 /*count*/, ObjectGuid /*lootguid*/) override
     {
         if (!sT->GetUseCollectionSystem() || !item || typeid(*item) != typeid(Item))
+            return;
+        if (item)
+        {
+            AddToDatabase(player, item);
+        }
+    }
+
+    void OnPlayerStoreNewItem(Player* player, Item* item, uint32 /*count*/) override
+    {
+        if (!sT->GetUseCollectionSystem())
             return;
         if (item)
         {
