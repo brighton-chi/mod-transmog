@@ -1165,38 +1165,6 @@ void Transmogrification::DeleteFakeFromDB(ObjectGuid::LowType itemLowGuid, Chara
         CharacterDatabase.Execute("DELETE FROM custom_transmogrification WHERE GUID = {}", itemGUID.GetCounter());
 }
 
-bool Transmogrification::IsPlusFeatureEligible(ObjectGuid const &playerGuid, uint32 feature) const
-{
-    if (!IsTransmogPlusEnabled)
-        return false;
-
-    auto it = plusDataMap.find(feature);
-    if (it == plusDataMap.end() || it->second.empty())
-        return false;
-
-    Player* player = ObjectAccessor::FindConnectedPlayer(playerGuid);
-
-    if (!player)
-        return false;
-
-    if (player->IsGameMaster())
-        return true; // GM can use all features
-
-    const auto membershipLevel = GetPlayerMembershipLevel(player);
-
-    if (!membershipLevel)
-        return false;
-
-    const auto& membershipLevels = it->second;
-    for (const auto& level : membershipLevels)
-    {
-        if (level == membershipLevel)
-            return true;
-    }
-
-    return false;
-}
-
 void Transmogrification::LoadCollections()
 {
     if (sTransmogrification->GetUseCollectionSystem())
