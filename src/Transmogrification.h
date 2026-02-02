@@ -13,6 +13,7 @@
 #include "QuestDef.h"
 #include "ItemTemplate.h"
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #define PRESETS // comment this line to disable preset feature totally
@@ -100,7 +101,7 @@ public:
     typedef std::unordered_map<ObjectGuid, ObjectGuid> transmogData;
     typedef std::unordered_map<ObjectGuid, uint32> transmog2Data;
     typedef std::unordered_map<ObjectGuid, transmog2Data> transmogMap;
-    typedef std::unordered_map<uint32, std::vector<uint32>> collectionCacheMap;
+    typedef std::unordered_map<uint32, std::unordered_set<uint32>> collectionCacheMap;
     typedef std::unordered_map<uint32, std::string> searchStringMap;
     typedef std::unordered_map<ObjectGuid, uint8> selectedSlotMap;
 
@@ -136,6 +137,7 @@ public:
 
     void LoadPlayerSets(ObjectGuid pGUID);
     void UnloadPlayerSets(ObjectGuid pGUID);
+    void LoadCollections();
 #endif
 
     bool EnableTransmogInfo;

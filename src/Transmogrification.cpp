@@ -465,22 +465,15 @@ void Transmogrification::SetFakeEntry(Player* player, uint32 newEntry, uint8 /*s
 
 bool Transmogrification::AddCollectedAppearance(uint32 accountId, uint32 itemId)
 {
-    if (collectionCache.find(accountId)  == collectionCache.end())
+    if (!collectionCache.contains(accountId))
     {
-        collectionCache.insert({accountId, {itemId}});
+        collectionCache.insert({ accountId, {itemId} });
         return true;
     }
-    if (std::find(collectionCache[accountId].begin(), collectionCache[accountId].end(), itemId) == collectionCache[accountId].end())
-    {
-        collectionCache[accountId].push_back(itemId);
 
-        if (!sConfigMgr->GetOption<bool>("Transmogrification.EnableSortByQualityAndName", true)) {
-            std::sort(collectionCache[accountId].begin(), collectionCache[accountId].end());
-        }
-
-        return true;
-    }
-    return false;
+    auto res = collectionCache[accountId].insert(itemId);
+    bool inserted = res.second;
+    return inserted;
 }
 
 TransmogAcoreStrings Transmogrification::Transmogrify(Player* player, uint32 itemEntry, uint8 slot, /*uint32 newEntry, */bool no_cost) {
@@ -1170,6 +1163,61 @@ void Transmogrification::DeleteFakeFromDB(ObjectGuid::LowType itemLowGuid, Chara
         (*trans)->Append("DELETE FROM custom_transmogrification WHERE GUID = {}", itemLowGuid);
     else
         CharacterDatabase.Execute("DELETE FROM custom_transmogrification WHERE GUID = {}", itemGUID.GetCounter());
+}
+
+bool Transmogrification::IsPlusFeatureEligible(ObjectGuid const &playerGuid, uint32 feature) const
+{
+    if (!IsTransmogPlusEnabled)
+        return false;
+
+    auto it = plusDataMap.find(feature);
+    if (it == plusDataMap.end() || it->second.empty())
+        return false;
+
+    Player* player = ObjectAccessor::FindConnectedPlayer(playerGuid);
+
+    if (!player)
+        return false;
+
+    if (player->IsGameMaster())
+        return true; // GM can use all features
+
+    const auto membershipLevel = GetPlayerMembershipLevel(player);
+
+    if (!membershipLevel)
+        return false;
+
+    const auto& membershipLevels = it->second;
+    for (const auto& level : membershipLevels)
+    {
+        if (level == membershipLevel)
+            return true;
+    }
+
+    return false;
+}
+
+void Transmogrification::LoadCollections()
+{
+    if (sTransmogrification->GetUseCollectionSystem())
+    {
+        LOG_INFO("module", "Loading transmog appearance collection cache....");
+        uint32 collectedAppearanceCount = 0;
+        QueryResult result = CharacterDatabase.Query("SELECT account_id, item_template_id FROM custom_unlocked_appearances");
+        if (result)
+        {
+            do
+            {
+                uint32 accountId = (*result)[0].Get<uint32>();
+                uint32 itemId = (*result)[1].Get<uint32>();
+                if (sTransmogrification->AddCollectedAppearance(accountId, itemId))
+                    collectedAppearanceCount++;
+
+            } while (result->NextRow());
+        }
+
+        LOG_INFO("module", "Loaded {} collected appearances into cache", collectedAppearanceCount);
+    }
 }
 
 bool Transmogrification::GetEnableTransmogInfo() const
