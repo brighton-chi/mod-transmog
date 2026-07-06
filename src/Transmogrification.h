@@ -182,10 +182,10 @@ public:
 
     bool UseCollectionSystem;
     bool UseVendorInterface;
-    
+
     bool AllowHiddenTransmog;
     bool HiddenTransmogIsFree;
-    
+
     bool TrackUnusableItems;
     bool RetroActiveAppearances;
     bool ResetRetroActiveAppearances;
@@ -256,7 +256,7 @@ public:
     uint32 GetHighestAvailableForPlayer(int playerGuid) const;
 
     bool TierAvailable(Player* player, int playerGuid, uint32 tierSpell) const;
-    
+
     bool IsInvTypeMismatchAllowed (const ItemTemplate *source, const ItemTemplate *target) const;
     bool IsSubclassMismatchAllowed (Player *player, const ItemTemplate *source, const ItemTemplate *target) const;
 

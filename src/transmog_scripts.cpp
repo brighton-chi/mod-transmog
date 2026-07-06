@@ -19,7 +19,9 @@ Blizzard might have changed the quality requirements.
 Cant transmogrify rediculus items // Foereaper: would be fun to stab people with a fish
 -- Cant think of any good way to handle this easily, could rip flagged items from cata DB
 */
+#include <algorithm>
 #include <unordered_map>
+#include <unordered_set>
 #include "Transmogrification.h"
 #include "Chat.h"
 #include "ScriptedCreature.h"
@@ -394,10 +396,21 @@ std::vector<Item*> GetValidTransmogs (Player* player, Item* target, bool hasSear
         if (sT->collectionCache.find(accountId) == sT->collectionCache.end())
             return allowedItems;
 
-        for (uint32 itemId : sT->collectionCache[accountId])
+        // Sort by item ID so the lowest ID wins when multiple items share the same DisplayInfoID
+        std::vector<uint32> sortedItemIds(sT->collectionCache[accountId].begin(), sT->collectionCache[accountId].end());
+        std::sort(sortedItemIds.begin(), sortedItemIds.end());
+
+        std::unordered_set<uint32> seenDisplayIds;
+        for (uint32 itemId : sortedItemIds)
         {
-            if (!sObjectMgr->GetItemTemplate(itemId))
+            ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(itemId);
+            if (!itemTemplate)
                 continue;
+
+            // Deduplicate by DisplayInfoID — only show one item per unique appearance
+            if (!seenDisplayIds.insert(itemTemplate->DisplayInfoID).second)
+                continue;
+
             Item* srcItem = Item::CreateItem(itemId, 1, 0);
             if (ValidForTransmog(player, target, srcItem, hasSearch, searchTerm))
                 allowedItems.push_back(srcItem);
