@@ -123,6 +123,9 @@ public:
     presetNameMap presetByName; // presetByName[pGUID][presetID] = presetName
     searchStringMap searchStringByPlayer;
 
+    typedef std::unordered_map<ObjectGuid, std::unordered_set<uint8>> pendingSaveSlotsMap;
+    pendingSaveSlotsMap pendingSaveSlots; // pendingSaveSlots[pGUID] = set of slots to include in save
+
     void PresetTransmog(Player* player, Item* itemTransmogrified, uint32 fakeEntry, uint8 slot);
 
     bool EnableSets;
