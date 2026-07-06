@@ -622,6 +622,7 @@ bool Transmogrification::CanTransmogrifyItemWithItem(Player* player, ItemTemplat
 
     if (source->InventoryType == INVTYPE_BAG ||
         source->InventoryType == INVTYPE_RELIC ||
+        source->InventoryType == INVTYPE_NECK ||
         // source->InventoryType == INVTYPE_BODY ||
         source->InventoryType == INVTYPE_FINGER ||
         source->InventoryType == INVTYPE_TRINKET ||
@@ -631,6 +632,7 @@ bool Transmogrification::CanTransmogrifyItemWithItem(Player* player, ItemTemplat
 
     if (target->InventoryType == INVTYPE_BAG ||
         target->InventoryType == INVTYPE_RELIC ||
+        target->InventoryType == INVTYPE_NECK ||
         // target->InventoryType == INVTYPE_BODY ||
         target->InventoryType == INVTYPE_FINGER ||
         target->InventoryType == INVTYPE_TRINKET ||
@@ -1049,6 +1051,7 @@ bool Transmogrification::CanNeverTransmog(ItemTemplate const* itemTemplate)
 {
     return (itemTemplate->InventoryType == INVTYPE_BAG ||
         itemTemplate->InventoryType == INVTYPE_RELIC ||
+        itemTemplate->InventoryType == INVTYPE_NECK ||
         itemTemplate->InventoryType == INVTYPE_FINGER ||
         itemTemplate->InventoryType == INVTYPE_TRINKET ||
         itemTemplate->InventoryType == INVTYPE_AMMO ||
