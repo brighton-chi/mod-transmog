@@ -4,6 +4,7 @@
 #include "SpellMgr.h"
 #include "Tokenize.h"
 #include "WorldSessionMgr.h"
+#include "DBCFileLoader.h"
 
 Transmogrification* Transmogrification::instance()
 {
@@ -1196,6 +1197,62 @@ void Transmogrification::LoadCollections()
 
         LOG_INFO("module", "Loaded {} collected appearances into cache", collectedAppearanceCount);
     }
+}
+
+void Transmogrification::LoadVisualHashes()
+{
+    LOG_INFO("module", "Loading ItemDisplayInfo.dbc for visual fingerprint hashing...");
+
+    std::string dbcPath = sConfigMgr->GetOption<std::string>("DataDir", "./data") + "/dbc/ItemDisplayInfo.dbc";
+
+    DBCFileLoader dbc;
+    // Format: n=ID, skip cols 1-13, load cols 14-23 as strings, skip col 24
+    if (!dbc.Load(dbcPath.c_str(), "nxxxxxxxxxxxxxssssssssssx"))
+    {
+        LOG_ERROR("module", "Transmogrification::LoadVisualHashes: Failed to load {}", dbcPath);
+        return;
+    }
+
+    // FNV-1a hash
+    auto fnvHash = [](std::string_view sv, uint32 seed = 2166136261u) -> uint32
+    {
+        for (char c : sv)
+        {
+            seed ^= static_cast<uint8>(c);
+            seed *= 16777619u;
+        }
+        return seed;
+    };
+
+    uint32 hashedCount = 0;
+    for (uint32 i = 0; i < dbc.GetNumRows(); ++i)
+    {
+        DBCFileLoader::Record rec = dbc.getRecord(i);
+        uint32 displayId = rec.getUInt(0);
+        if (displayId == 0)
+            continue;
+
+        // Hash all texture/visual string columns (fields 1-10 in loaded format = DBC cols 14-23)
+        uint32 hash = 2166136261u;
+        bool hasVisualData = false;
+        for (uint32 f = 1; f < 11; ++f)
+        {
+            char const* str = rec.getString(f);
+            if (str && str[0] != '\0')
+            {
+                hash = fnvHash(std::string_view(str), hash);
+                hasVisualData = true;
+            }
+        }
+
+        if (hasVisualData)
+        {
+            visualHashCache[displayId] = hash;
+            ++hashedCount;
+        }
+    }
+
+    LOG_INFO("module", "Loaded {} visual fingerprints from ItemDisplayInfo.dbc", hashedCount);
 }
 
 bool Transmogrification::GetEnableTransmogInfo() const

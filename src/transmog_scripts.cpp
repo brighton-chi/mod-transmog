@@ -390,51 +390,75 @@ std::vector<Item*> GetValidTransmogs (Player* player, Item* target, bool hasSear
     std::vector<Item*> allowedItems;
     if (!target) return allowedItems;
 
+    std::unordered_set<uint32> seenHashes;
+
     if (sT->GetUseCollectionSystem())
     {
         uint32 accountId = player->GetSession()->GetAccountId();
-        if (sT->collectionCache.find(accountId) == sT->collectionCache.end())
-            return allowedItems;
-
-        // Sort by item ID so the lowest ID wins when multiple items share the same DisplayInfoID
-        std::vector<uint32> sortedItemIds(sT->collectionCache[accountId].begin(), sT->collectionCache[accountId].end());
-        std::sort(sortedItemIds.begin(), sortedItemIds.end());
-
-        std::unordered_set<uint32> seenDisplayIds;
-        for (uint32 itemId : sortedItemIds)
+        if (sT->collectionCache.find(accountId) != sT->collectionCache.end())
         {
-            ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(itemId);
-            if (!itemTemplate)
-                continue;
+            // Sort by item ID so the lowest ID wins when multiple items share the same appearance
+            std::vector<uint32> sortedItemIds(sT->collectionCache[accountId].begin(), sT->collectionCache[accountId].end());
+            std::sort(sortedItemIds.begin(), sortedItemIds.end());
 
-            // Deduplicate by DisplayInfoID — only show one item per unique appearance
-            if (!seenDisplayIds.insert(itemTemplate->DisplayInfoID).second)
-                continue;
+            for (uint32 itemId : sortedItemIds)
+            {
+                ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(itemId);
+                if (!itemTemplate)
+                    continue;
 
-            Item* srcItem = Item::CreateItem(itemId, 1, 0);
-            if (ValidForTransmog(player, target, srcItem, hasSearch, searchTerm))
-                allowedItems.push_back(srcItem);
+                // Deduplicate by visual fingerprint hash
+                uint32 visualHash = 0;
+                auto hashIt = sT->visualHashCache.find(itemTemplate->DisplayInfoID);
+                if (hashIt != sT->visualHashCache.end())
+                    visualHash = hashIt->second;
+
+                if (visualHash && seenHashes.find(visualHash) != seenHashes.end())
+                    continue;
+
+                Item* srcItem = Item::CreateItem(itemId, 1, 0);
+                if (ValidForTransmog(player, target, srcItem, hasSearch, searchTerm))
+                {
+                    allowedItems.push_back(srcItem);
+                    if (visualHash)
+                        seenHashes.insert(visualHash);
+                }
+            }
         }
     }
     else
     {
-        for (uint8 i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
+        auto checkAndAdd = [&](Item* srcItem) -> void
         {
-            Item* srcItem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+            if (!srcItem)
+                return;
+            ItemTemplate const* itemTemplate = srcItem->GetTemplate();
+
+            uint32 visualHash = 0;
+            auto hashIt = sT->visualHashCache.find(itemTemplate->DisplayInfoID);
+            if (hashIt != sT->visualHashCache.end())
+                visualHash = hashIt->second;
+
+            if (visualHash && seenHashes.find(visualHash) != seenHashes.end())
+                return;
+
             if (ValidForTransmog(player, target, srcItem, hasSearch, searchTerm))
+            {
                 allowedItems.push_back(srcItem);
-        }
+                if (visualHash)
+                    seenHashes.insert(visualHash);
+            }
+        };
+
+        for (uint8 i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
+            checkAndAdd(player->GetItemByPos(INVENTORY_SLOT_BAG_0, i));
         for (uint8 i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
         {
             Bag* bag = player->GetBagByPos(i);
             if (!bag)
                 continue;
             for (uint32 j = 0; j < bag->GetBagSize(); ++j)
-            {
-                Item* srcItem = player->GetItemByPos(i, j);
-                if (ValidForTransmog(player, target, srcItem, hasSearch, searchTerm))
-                    allowedItems.push_back(srcItem);
-            }
+                checkAndAdd(player->GetItemByPos(i, j));
         }
     }
 
@@ -542,6 +566,18 @@ public:
         player->PlayerTalkClass->ClearMenus();
         WorldSession* session = player->GetSession();
         LocaleConstant locale = session->GetSessionDbLocaleIndex();
+        // Toggle slot inclusion in save preset
+        if (sender == EQUIPMENT_SLOT_END + 12)
+        {
+            uint8 toggleSlot = static_cast<uint8>(action);
+            auto& slots = sT->pendingSaveSlots[player->GetGUID()];
+            if (slots.contains(toggleSlot))
+                slots.erase(toggleSlot);
+            else
+                slots.insert(toggleSlot);
+            OnGossipSelect(player, creature, EQUIPMENT_SLOT_END + 8, 0);
+            return true;
+        }
         // Next page
         if (sender > EQUIPMENT_SLOT_END + 10)
         {
@@ -658,16 +694,6 @@ public:
 
                 OnGossipSelect(player, creature, EQUIPMENT_SLOT_END + 4, 0);
             } break;
-            case EQUIPMENT_SLOT_END + 12: // Toggle slot inclusion in save preset
-            {
-                uint8 toggleSlot = static_cast<uint8>(action);
-                auto& slots = sT->pendingSaveSlots[player->GetGUID()];
-                if (slots.contains(toggleSlot))
-                    slots.erase(toggleSlot);
-                else
-                    slots.insert(toggleSlot);
-                // fall through to refresh the preview below
-            }
             case EQUIPMENT_SLOT_END + 8: // Save preset
             {
                 if (!sT->GetEnableSets() || sT->presetByName[player->GetGUID()].size() >= sT->GetMaxSets())
@@ -1289,6 +1315,7 @@ public:
 #endif
 
         sT->LoadCollections();
+        sT->LoadVisualHashes();
     }
 };
 
