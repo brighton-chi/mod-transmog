@@ -566,18 +566,6 @@ public:
         player->PlayerTalkClass->ClearMenus();
         WorldSession* session = player->GetSession();
         LocaleConstant locale = session->GetSessionDbLocaleIndex();
-        // Toggle slot inclusion in save preset
-        if (sender == EQUIPMENT_SLOT_END + 12)
-        {
-            uint8 toggleSlot = static_cast<uint8>(action);
-            auto& slots = sT->pendingSaveSlots[player->GetGUID()];
-            if (slots.contains(toggleSlot))
-                slots.erase(toggleSlot);
-            else
-                slots.insert(toggleSlot);
-            OnGossipSelect(player, creature, EQUIPMENT_SLOT_END + 8, 0);
-            return true;
-        }
         // Next page
         if (sender > EQUIPMENT_SLOT_END + 10)
         {
@@ -694,60 +682,16 @@ public:
 
                 OnGossipSelect(player, creature, EQUIPMENT_SLOT_END + 4, 0);
             } break;
-            case EQUIPMENT_SLOT_END + 8: // Save preset
+            case EQUIPMENT_SLOT_END + 8: // Save preset — choose scope
             {
                 if (!sT->GetEnableSets() || sT->presetByName[player->GetGUID()].size() >= sT->GetMaxSets())
                 {
                     OnGossipHello(player, creature);
                     return true;
                 }
-
-                // On first entry, populate pendingSaveSlots with all equipped visible-slot items
-                if (sender == EQUIPMENT_SLOT_END + 8)
-                {
-                    sT->pendingSaveSlots.erase(player->GetGUID());
-                    for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
-                    {
-                        if (!sT->GetSlotName(slot, session))
-                            continue;
-                        if (player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
-                            sT->pendingSaveSlots[player->GetGUID()].insert(slot);
-                    }
-                }
-
-                uint32 cost = 0;
-                bool canSave = false;
-                auto const& includedSlots = sT->pendingSaveSlots[player->GetGUID()];
-                for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
-                {
-                    if (!sT->GetSlotName(slot, session))
-                        continue;
-                    if (Item* newItem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
-                    {
-                        uint32 entry = sT->GetFakeEntry(newItem->GetGUID());
-                        if (!entry)
-                            entry = newItem->GetEntry();
-                        const ItemTemplate* temp = sObjectMgr->GetItemTemplate(entry);
-                        if (!temp)
-                            continue;
-                        if (!sT->SuitableForTransmogrification(player, temp))
-                            continue;
-
-                        bool included = includedSlots.contains(slot);
-                        if (included)
-                        {
-                            cost += sT->GetSpecialPrice(temp);
-                            canSave = true;
-                        }
-                        std::string indicator = included
-                            ? "|TInterface/Buttons/UI-CheckBox-Check:20:20:-18:0|t"
-                            : "|TInterface/Buttons/UI-CheckBox-Up:20:20:-18:0|t";
-                        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, indicator + sT->GetItemIcon(entry, 30, 30, -18, 0) + sT->GetItemLink(entry, session), EQUIPMENT_SLOT_END + 12, slot);
-                    }
-                }
-                if (canSave)
-                    AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/GuildBankFrame/UI-GuildBankFrame-NewTab:30:30:-18:0|t" + GetLocaleText(locale, "save_set"), 0, 0, GetLocaleText(locale, "insert_set_name"), cost*sT->GetSetCostModifier() + sT->GetSetCopperCost(), true);
-                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/PaperDollInfoFrame/UI-GearManager-Undo:30:30:-18:0|t" + GetLocaleText(locale, "update_menu"), EQUIPMENT_SLOT_END + 8, 0);
+                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/ICONS/INV_Misc_Statue_02:30:30:-18:0|tTransmogged slots only", 0, 1, GetLocaleText(locale, "insert_set_name"), 0, true);
+                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/ICONS/INV_Misc_Statue_02:30:30:-18:0|tAll equipped slots", 0, 2, GetLocaleText(locale, "insert_set_name"), 0, true);
+                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/ICONS/INV_Misc_Statue_02:30:30:-18:0|tAll slots except weapons", 0, 3, GetLocaleText(locale, "insert_set_name"), 0, true);
                 AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/ICONS/Ability_Spy:30:30:-18:0|t" + GetLocaleText(locale, "back"), EQUIPMENT_SLOT_END + 4, 0);
                 SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
             } break;
@@ -791,8 +735,8 @@ public:
             OnGossipSelect(player, creature, EQUIPMENT_SLOT_END, sender - 1);
             return true;
         }
-        if (action)
-            return true; // should never happen
+        if (action < 1 || action > 3)
+            return true; // invalid save mode
         if (!sT->GetEnableSets())
         {
             OnGossipHello(player, creature);
@@ -810,16 +754,24 @@ public:
 
                 int32 cost = 0;
                 std::map<uint8, uint32> items;
-                auto const& includedSlots = sT->pendingSaveSlots[player->GetGUID()];
+                // Mode 1: transmogged slots only, Mode 2: all equipped, Mode 3: all except weapons
                 for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
                 {
                     if (!sT->GetSlotName(slot, player->GetSession()))
                         continue;
-                    if (!includedSlots.contains(slot))
+
+                    // Mode 3: exclude weapon slots
+                    if (action == 3 && (slot == EQUIPMENT_SLOT_MAINHAND || slot == EQUIPMENT_SLOT_OFFHAND || slot == EQUIPMENT_SLOT_RANGED))
                         continue;
+
                     if (Item* newItem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
                     {
                         uint32 entry = sT->GetFakeEntry(newItem->GetGUID());
+
+                        // Mode 1: only save slots that have an active transmog
+                        if (action == 1 && !entry)
+                            continue;
+
                         if (!entry)
                             entry = newItem->GetEntry();
                         if (entry != HIDDEN_ITEM_ID)
@@ -834,7 +786,6 @@ public:
                         items[slot] = entry;
                     }
                 }
-                sT->pendingSaveSlots.erase(player->GetGUID());
                 if (items.empty())
                     break; // no transmogrified items were found to be saved
                 cost *= sT->GetSetCostModifier();
