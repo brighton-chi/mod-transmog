@@ -23,8 +23,18 @@ void Transmogrification::PresetTransmog(Player* player, Item* itemTransmogrified
         return;
     if (slot >= EQUIPMENT_SLOT_END)
         return;
-    if (fakeEntry != HIDDEN_ITEM_ID && (!CanTransmogrifyItemWithItem(player, itemTransmogrified->GetTemplate(), sObjectMgr->GetItemTemplate(fakeEntry))))
-        return;
+    if (fakeEntry != HIDDEN_ITEM_ID)
+    {
+        // If the set entry is the item's own entry, just strip any existing transmog
+        if (fakeEntry == itemTransmogrified->GetEntry())
+        {
+            if (GetFakeEntry(itemTransmogrified->GetGUID()))
+                DeleteFakeEntry(player, slot, itemTransmogrified);
+            return;
+        }
+        if (!CanTransmogrifyItemWithItem(player, itemTransmogrified->GetTemplate(), sObjectMgr->GetItemTemplate(fakeEntry)))
+            return;
+    }
 
     // [AZTH] Custom
     if (GetFakeEntry(itemTransmogrified->GetGUID()))
