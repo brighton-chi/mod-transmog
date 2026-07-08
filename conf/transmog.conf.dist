@@ -98,41 +98,6 @@ Transmogrification.EnablePortable = 1
 Transmogrification.EnableSortByQualityAndName = 1
 
 #
-#    COPPER COST
-#
-#    Transmogrification.ScaledCostModifier
-#        Description: A multiplier for the default gold cost (change to 0 for no default cost)
-#        Default:    1.0
-#
-#    Transmogrification.CopperCost
-#        Description: Cost added on top of other costs (can be negative)
-#        Default:    0
-#
-#    For custom gold cost set ScaledCostModifier to 0.0 and CopperCost to what ever cost you want
-
-Transmogrification.ScaledCostModifier = 1.0
-Transmogrification.CopperCost = 0
-
-#
-#    TOKEN COST
-#
-#    Transmogrification.RequireToken
-#        Description: Adds/disables token cost
-#        Default:    0
-#
-#    Transmogrification.TokenEntry
-#        Description: Entry of the token item
-#        Default:    49426
-#
-#    Transmogrification.TokenAmount
-#        Description: Amount of tokens required
-#        Default:    1
-
-Transmogrification.RequireToken = 0
-Transmogrification.TokenEntry = 49426
-Transmogrification.TokenAmount = 1
-
-#
 #    REQUIREMENTS
 #
 #    Transmogrification.AllowPoor
@@ -211,10 +176,6 @@ Transmogrification.TokenAmount = 1
 #        Description: Ignore required spell for source items
 #        Default:    0
 #
-#    Transmogrification.IgnoreReqLevel
-#        Description: Ignore required level for source items
-#        Default:    0
-#
 #    Transmogrification.IgnoreReqEvent
 #        Description: Ignore required event for source items
 #        Default:    0
@@ -244,7 +205,6 @@ Transmogrification.IgnoreReqRace = 0
 Transmogrification.IgnoreReqClass = 0
 Transmogrification.IgnoreReqSkill = 0
 Transmogrification.IgnoreReqSpell = 0
-Transmogrification.IgnoreReqLevel = 0
 Transmogrification.IgnoreReqEvent = 0
 Transmogrification.IgnoreReqStats = 0
 
@@ -266,23 +226,12 @@ Transmogrification.IgnoreReqStats = 0
 #    Transmogrification.SetNpcText
 #        Description: The npc_text entry of the info menu for the set feature
 #        Default:    601084
-#
-#    Transmogrification.SetCostModifier
-#        Description: A multiplier for the default gold cost (all costs summed together) (change to 0 for no default cost)
-#        Default:    3.0
-#
-#    Transmogrification.SetCopperCost
-#        Description: Cost added on top of other costs (can be negative)
-#        Default:    0
 
 Transmogrification.EnableSets = 1
 Transmogrification.MaxSets = 10
 
 Transmogrification.EnableSetInfo = 1
 Transmogrification.SetNpcText = 601084
-
-Transmogrification.SetCostModifier = 3.0
-Transmogrification.SetCopperCost = 0
 
 #
 ###################################################################################################

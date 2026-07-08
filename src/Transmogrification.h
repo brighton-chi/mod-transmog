@@ -40,7 +40,7 @@ enum MixedWeaponSettings
     MIXED_WEAPONS_LOOSE  = 2
 };
 
-enum TransmogAcoreStrings // Language.h might have same entries, appears when executing SQL, change if needed
+enum TransmogAcoreStrings
 {
     LANG_ERR_TRANSMOG_OK = 11100, // change this
     LANG_ERR_TRANSMOG_INVALID_SLOT,
@@ -128,13 +128,9 @@ public:
 
     bool EnableSets;
     uint8 MaxSets;
-    float SetCostModifier;
-    int32 SetCopperCost;
 
     bool GetEnableSets() const;
     uint8 GetMaxSets() const;
-    float GetSetCostModifier() const;
-    int32 GetSetCopperCost() const;
 
     void LoadPlayerSets(ObjectGuid pGUID);
     void UnloadPlayerSets(ObjectGuid pGUID);
@@ -148,13 +144,6 @@ public:
     // these are thread unsafe, but assumed to be static data so it should be safe
     std::set<uint32> Allowed;
     std::set<uint32> NotAllowed;
-
-    float ScaledCostModifier;
-    int32 CopperCost;
-
-    bool RequireToken;
-    uint32 TokenEntry;
-    uint32 TokenAmount;
 
     bool AllowPoor;
     bool AllowCommon;
@@ -177,7 +166,6 @@ public:
     bool IgnoreReqClass;
     bool IgnoreReqSkill;
     bool IgnoreReqSpell;
-    bool IgnoreReqLevel;
     bool IgnoreReqEvent;
     bool IgnoreReqStats;
 
@@ -221,21 +209,7 @@ public:
     bool SuitableForTransmogrification(Player* player, ItemTemplate const* proto) const;
     bool SuitableForTransmogrification(ObjectGuid guid, ItemTemplate const* proto) const;
     bool IsItemTransmogrifiable(ItemTemplate const* proto, ObjectGuid const &playerGuid) const;
-    uint32 GetSpecialPrice(ItemTemplate const* proto) const;
-
     void DeleteFakeFromDB(ObjectGuid::LowType itemLowGuid, CharacterDatabaseTransaction* trans = nullptr);
-    float GetScaledCostModifier() const;
-    int32 GetCopperCost() const;
-
-    bool GetRequireToken() const;
-    uint32 GetTokenEntry() const;
-    uint32 GetTokenAmount() const;
-
-    bool GetAllowMixedArmorTypes() const;
-    bool GetAllowLowerTiers() const;
-    bool GetAllowMixedOffhandArmorTypes() const;
-    uint8 GetAllowMixedWeaponTypes() const;
-
     // Config
     bool GetEnableTransmogInfo() const;
     uint32 GetTransmogNpcText() const;

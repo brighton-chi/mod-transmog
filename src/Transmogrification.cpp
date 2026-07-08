@@ -109,14 +109,6 @@ uint8 Transmogrification::GetMaxSets() const
 {
     return MaxSets;
 }
-float Transmogrification::GetSetCostModifier() const
-{
-    return SetCostModifier;
-}
-int32 Transmogrification::GetSetCopperCost() const
-{
-    return SetCopperCost;
-}
 
 void Transmogrification::UnloadPlayerSets(ObjectGuid pGUID)
 {
@@ -520,90 +512,32 @@ TransmogAcoreStrings Transmogrification::Transmogrify(Player* player, ObjectGuid
 
 TransmogAcoreStrings Transmogrification::Transmogrify(Player* player, Item* itemTransmogrifier, uint8 slot, /*uint32 newEntry, */bool no_cost, bool hidden_transmog)
 {
-    int32 cost = 0;
     // slot of the transmogrified item
     if (slot >= EQUIPMENT_SLOT_END)
-    {
-        // TC_LOG_DEBUG(LOG_FILTER_NETWORKIO, "WORLD: HandleTransmogrifyItems - Player (GUID: {}, name: {}) tried to transmogrify an item (lowguid: {}) with a wrong slot ({}) when transmogrifying items.", player->GetGUIDLow(), player->GetName(), GUID_LOPART(itemGUID), slot);
         return LANG_ERR_TRANSMOG_INVALID_SLOT;
-    }
 
-    // transmogrified item
     Item* itemTransmogrified = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
     if (!itemTransmogrified)
-    {
-        //TC_LOG_DEBUG(LOG_FILTER_NETWORKIO, "WORLD: HandleTransmogrifyItems - Player (GUID: {}, name: {}) tried to transmogrify an invalid item in a valid slot (slot: {}).", player->GetGUIDLow(), player->GetName(), slot);
         return LANG_ERR_TRANSMOG_MISSING_DEST_ITEM;
-    }
 
     if (hidden_transmog)
     {
-        cost = GetSpecialPrice(itemTransmogrified->GetTemplate());
-        cost *= ScaledCostModifier;
-        cost += CopperCost;
-
-        if (!HiddenTransmogIsFree && cost)
-        {
-            if (cost < 0)
-                LOG_DEBUG("module", "Transmogrification::Transmogrify - {} ({}) transmogrification invalid cost (non negative, amount {}). Transmogrified {} with {}",
-                    player->GetName(), player->GetGUID().ToString(), -cost, itemTransmogrified->GetEntry(), itemTransmogrifier->GetEntry());
-            else
-            {
-                if (!player->HasEnoughMoney(cost))
-                    return LANG_ERR_TRANSMOG_NOT_ENOUGH_MONEY;
-                player->ModifyMoney(-cost, false);
-            }
-        }
-        SetFakeEntry(player, HIDDEN_ITEM_ID, slot, itemTransmogrified); // newEntry
+        SetFakeEntry(player, HIDDEN_ITEM_ID, slot, itemTransmogrified);
         return LANG_ERR_TRANSMOG_OK;
     }
 
-    if (!itemTransmogrifier) // reset look newEntry
+    if (!itemTransmogrifier) // reset look
     {
-        // Custom
         DeleteFakeEntry(player, slot, itemTransmogrified);
     }
     else
     {
         if (!CanTransmogrifyItemWithItem(player, itemTransmogrified->GetTemplate(), itemTransmogrifier->GetTemplate()))
-        {
-            //TC_LOG_DEBUG(LOG_FILTER_NETWORKIO, "WORLD: HandleTransmogrifyItems - Player (GUID: {}, name: {}) failed CanTransmogrifyItemWithItem ({} with {}).", player->GetGUIDLow(), player->GetName(), itemTransmogrified->GetEntry(), itemTransmogrifier->GetEntry());
             return LANG_ERR_TRANSMOG_INVALID_ITEMS;
-        }
 
-        if (!no_cost)
-        {
-            if (RequireToken)
-            {
-                if (player->HasItemCount(TokenEntry, TokenAmount))
-                    player->DestroyItemCount(TokenEntry, TokenAmount, true);
-                else
-                    return LANG_ERR_TRANSMOG_NOT_ENOUGH_TOKENS;
-            }
-
-            cost = GetSpecialPrice(itemTransmogrified->GetTemplate());
-            cost *= ScaledCostModifier;
-            cost += CopperCost;
-
-            if (cost) // 0 cost if reverting look
-            {
-                if (cost < 0)
-                    LOG_DEBUG("module", "Transmogrification::Transmogrify - {} ({}) transmogrification invalid cost (non negative, amount {}). Transmogrified {} with {}",
-                        player->GetName(), player->GetGUID().ToString(), -cost, itemTransmogrified->GetEntry(), itemTransmogrifier->GetEntry());
-                else
-                {
-                    if (!player->HasEnoughMoney(cost))
-                        return LANG_ERR_TRANSMOG_NOT_ENOUGH_MONEY;
-                    player->ModifyMoney(-cost, false);
-                }
-            }
-        }
-
-        // Custom
-        SetFakeEntry(player, itemTransmogrifier->GetEntry(), slot, itemTransmogrified); // newEntry
+        SetFakeEntry(player, itemTransmogrifier->GetEntry(), slot, itemTransmogrified);
 
         itemTransmogrified->UpdatePlayedTime(player);
-
         itemTransmogrified->SetOwnerGUID(player->GetGUID());
         itemTransmogrified->SetNotRefundable(player);
         itemTransmogrified->ClearSoulboundTradeable(player);
@@ -634,7 +568,6 @@ bool Transmogrification::CanTransmogrifyItemWithItem(Player* player, ItemTemplat
     if (source->InventoryType == INVTYPE_BAG ||
         source->InventoryType == INVTYPE_RELIC ||
         source->InventoryType == INVTYPE_NECK ||
-        // source->InventoryType == INVTYPE_BODY ||
         source->InventoryType == INVTYPE_FINGER ||
         source->InventoryType == INVTYPE_TRINKET ||
         source->InventoryType == INVTYPE_AMMO ||
@@ -644,7 +577,6 @@ bool Transmogrification::CanTransmogrifyItemWithItem(Player* player, ItemTemplat
     if (target->InventoryType == INVTYPE_BAG ||
         target->InventoryType == INVTYPE_RELIC ||
         target->InventoryType == INVTYPE_NECK ||
-        // target->InventoryType == INVTYPE_BODY ||
         target->InventoryType == INVTYPE_FINGER ||
         target->InventoryType == INVTYPE_TRINKET ||
         target->InventoryType == INVTYPE_AMMO ||
@@ -744,7 +676,6 @@ bool Transmogrification::IsInvTypeMismatchAllowed(const ItemTemplate *source, co
         if (IsRangedWeapon(sourceClass, sourceSub))
             return true;
 
-        // Main-hand to offhand restrictions - see https://wowpedia.fandom.com/wiki/Transmogrification
         if (AllowMixedWeaponTypes == MIXED_WEAPONS_LOOSE)
             return true;
         else if (targetType == INVTYPE_WEAPONMAINHAND || targetType == INVTYPE_WEAPONOFFHAND)
@@ -756,13 +687,17 @@ bool Transmogrification::IsInvTypeMismatchAllowed(const ItemTemplate *source, co
         }
         else if (targetType == INVTYPE_WEAPON)
         {
-            return sourceType == INVTYPE_WEAPONMAINHAND || (AllowMixedWeaponHandedness && sourceType == INVTYPE_WEAPONOFFHAND);
+            return sourceType == INVTYPE_WEAPONMAINHAND ||
+                (AllowMixedWeaponHandedness && sourceType == INVTYPE_WEAPONOFFHAND);
         }
     }
     else if (targetClass == ITEM_CLASS_ARMOR)
     {
-        if (AllowMixedOffhandArmorTypes && IsValidOffhandArmor(targetSub, targetType) && IsValidOffhandArmor(sourceSub, sourceType))
+        if (AllowMixedOffhandArmorTypes && IsValidOffhandArmor(targetSub, targetType) &&
+            IsValidOffhandArmor(sourceSub, sourceType))
+        {
             return true;
+        }
         if (targetType == INVTYPE_CHEST || targetType == INVTYPE_ROBE)
             return sourceType == INVTYPE_CHEST || sourceType == INVTYPE_ROBE;
     }
@@ -797,7 +732,6 @@ bool Transmogrification::SuitableForTransmogrification(Player* player, ItemTempl
     if (!IsItemTransmogrifiable(proto, player->GetGUID()))
         return false;
 
-    //[AZTH] Yehonal
     uint32 subclassSkill = proto->GetSkill();
     if (proto->SubClass > 0 && subclassSkill && player->GetSkillValue(proto->GetSkill()) == 0)
     {
@@ -849,7 +783,9 @@ bool Transmogrification::SuitableForTransmogrification(ObjectGuid guid, ItemTemp
 
     if (proto->Class != ITEM_CLASS_ARMOR &&
         proto->Class != ITEM_CLASS_WEAPON)
+    {
         return false;
+    }
 
     // Skip all checks for allowed items
     if (IsAllowed(proto->ItemId))
@@ -998,9 +934,7 @@ bool Transmogrification::IsItemTransmogrifiable(ItemTemplate const* proto, Objec
 
     if (!IgnoreReqStats)
     {
-        if (!proto->RandomProperty && !proto->RandomSuffix
-            /*[AZTH] Yehonal: we should transmorg also items without stats*/
-            && proto->StatsCount > 0)
+        if (!proto->RandomProperty && !proto->RandomSuffix && proto->StatsCount > 0)
         {
             bool found = false;
             for (uint8 i = 0; i < proto->StatsCount; ++i)
@@ -1019,11 +953,6 @@ bool Transmogrification::IsItemTransmogrifiable(ItemTemplate const* proto, Objec
     return true;
 }
 
-uint32 Transmogrification::GetSpecialPrice(ItemTemplate const* proto) const
-{
-    uint32 cost = proto->SellPrice < 10000 ? 10000 : proto->SellPrice;
-    return cost;
-}
 bool Transmogrification::IsRangedWeapon(uint32 Class, uint32 SubClass) const
 {
     return Class == ITEM_CLASS_WEAPON && (
@@ -1077,8 +1006,6 @@ void Transmogrification::LoadConfig(bool reload)
 
     EnableSets = sConfigMgr->GetOption<bool>("Transmogrification.EnableSets", true);
     MaxSets = sConfigMgr->GetOption<uint8>("Transmogrification.MaxSets", 10);
-    SetCostModifier = sConfigMgr->GetOption<float>("Transmogrification.SetCostModifier", 3.0f);
-    SetCopperCost = sConfigMgr->GetOption<int32>("Transmogrification.SetCopperCost", 0);
 
     if (MaxSets > MAX_OPTIONS)
         MaxSets = MAX_OPTIONS;
@@ -1121,13 +1048,6 @@ void Transmogrification::LoadConfig(bool reload)
         NotAllowed.insert(entry);
     }
 
-    ScaledCostModifier = sConfigMgr->GetOption<float>("Transmogrification.ScaledCostModifier", 1.0f);
-    CopperCost = sConfigMgr->GetOption<uint32>("Transmogrification.CopperCost", 0);
-
-    RequireToken = sConfigMgr->GetOption<bool>("Transmogrification.RequireToken", false);
-    TokenEntry = sConfigMgr->GetOption<uint32>("Transmogrification.TokenEntry", 49426);
-    TokenAmount = sConfigMgr->GetOption<uint32>("Transmogrification.TokenAmount", 1);
-
     AllowPoor = sConfigMgr->GetOption<bool>("Transmogrification.AllowPoor", false);
     AllowCommon = sConfigMgr->GetOption<bool>("Transmogrification.AllowCommon", false);
     AllowUncommon = sConfigMgr->GetOption<bool>("Transmogrification.AllowUncommon", true);
@@ -1149,7 +1069,6 @@ void Transmogrification::LoadConfig(bool reload)
     IgnoreReqClass = sConfigMgr->GetOption<bool>("Transmogrification.IgnoreReqClass", false);
     IgnoreReqSkill = sConfigMgr->GetOption<bool>("Transmogrification.IgnoreReqSkill", false);
     IgnoreReqSpell = sConfigMgr->GetOption<bool>("Transmogrification.IgnoreReqSpell", false);
-    IgnoreReqLevel = sConfigMgr->GetOption<bool>("Transmogrification.IgnoreReqLevel", false);
     IgnoreReqEvent = sConfigMgr->GetOption<bool>("Transmogrification.IgnoreReqEvent", false);
     IgnoreReqStats = sConfigMgr->GetOption<bool>("Transmogrification.IgnoreReqStats", false);
     UseCollectionSystem = sConfigMgr->GetOption<bool>("Transmogrification.UseCollectionSystem", true);
@@ -1162,12 +1081,6 @@ void Transmogrification::LoadConfig(bool reload)
 
     IsTransmogEnabled = sConfigMgr->GetOption<bool>("Transmogrification.Enable", true);
     IsPortableNPCEnabled = sConfigMgr->GetOption<bool>("Transmogrification.EnablePortable", true);
-
-    if (!sObjectMgr->GetItemTemplate(TokenEntry))
-    {
-        TokenEntry = 49426;
-    }
-
 }
 
 void Transmogrification::DeleteFakeFromDB(ObjectGuid::LowType itemLowGuid, CharacterDatabaseTransaction* trans /*= nullptr*/)
@@ -1281,42 +1194,6 @@ uint32 Transmogrification::GetSetNpcText() const
 {
     return SetNpcText;
 }
-float Transmogrification::GetScaledCostModifier() const
-{
-    return ScaledCostModifier;
-}
-int32 Transmogrification::GetCopperCost() const
-{
-    return CopperCost;
-}
-bool Transmogrification::GetRequireToken() const
-{
-    return RequireToken;
-}
-uint32 Transmogrification::GetTokenEntry() const
-{
-    return TokenEntry;
-}
-uint32 Transmogrification::GetTokenAmount() const
-{
-    return TokenAmount;
-}
-bool Transmogrification::GetAllowMixedArmorTypes() const
-{
-    return AllowMixedArmorTypes;
-};
-bool Transmogrification::GetAllowLowerTiers() const
-{
-    return AllowLowerTiers;
-};
-bool Transmogrification::GetAllowMixedOffhandArmorTypes() const
-{
-    return AllowMixedOffhandArmorTypes;
-};
-uint8 Transmogrification::GetAllowMixedWeaponTypes() const
-{
-    return AllowMixedWeaponTypes;
-};
 bool Transmogrification::GetUseCollectionSystem() const
 {
     return UseCollectionSystem;
@@ -1333,22 +1210,18 @@ bool Transmogrification::GetHiddenTransmogIsFree() const
 {
     return HiddenTransmogIsFree;
 }
-
 bool Transmogrification::GetTrackUnusableItems() const
 {
     return TrackUnusableItems;
 }
-
 bool Transmogrification::EnableRetroActiveAppearances() const
 {
     return RetroActiveAppearances;
 }
-
 bool Transmogrification::EnableResetRetroActiveAppearances() const
 {
     return ResetRetroActiveAppearances;
 }
-
 bool Transmogrification::IsEnabled() const
 {
     return IsTransmogEnabled;

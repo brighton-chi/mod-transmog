@@ -353,14 +353,6 @@ std::string GetLocaleText(LocaleConstant locale, const std::string& titleType) {
     return "";
 }
 
-uint32 GetTransmogPrice (ItemTemplate const* targetItem)
-{
-    uint32 price = sT->GetSpecialPrice(targetItem);
-    price *= sT->GetScaledCostModifier();
-    price += sT->GetCopperCost();
-    return price;
-}
-
 bool ValidForTransmog (Player* player, Item* target, Item* source, bool hasSearch, std::string searchTerm)
 {
     if (!target || !source || !player) return false;
@@ -469,15 +461,10 @@ std::vector<Item*> GetValidTransmogs (Player* player, Item* target, bool hasSear
     return allowedItems;
 }
 
-void PerformTransmogrification (Player* player, uint32 itemEntry, uint32 cost)
+void PerformTransmogrification (Player* player, uint32 itemEntry, uint32 /*cost*/)
 {
     uint8 slot = sT->selectionCache[player->GetGUID()];
     WorldSession* session = player->GetSession();
-    if (!player->HasEnoughMoney(cost))
-    {
-        ChatHandler(session).SendNotification(LANG_ERR_TRANSMOG_NOT_ENOUGH_MONEY);
-        return;
-    }
     TransmogAcoreStrings res = sT->Transmogrify(player, itemEntry, slot);
     if (res == LANG_ERR_TRANSMOG_OK)
         session->SendAreaTriggerMessage("{}",GTS(LANG_ERR_TRANSMOG_OK));
@@ -566,6 +553,9 @@ public:
         player->PlayerTalkClass->ClearMenus();
         WorldSession* session = player->GetSession();
         LocaleConstant locale = session->GetSessionDbLocaleIndex();
+        // Save set code-input options — let the code prompt handle them
+        if (!sender && action >= 1 && action <= 4)
+            return true;
         // Next page
         if (sender > EQUIPMENT_SLOT_END + 10)
         {
@@ -692,6 +682,7 @@ public:
                 AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/ICONS/INV_Misc_Statue_02:30:30:-18:0|tTransmogged slots only", 0, 1, GetLocaleText(locale, "insert_set_name"), 0, true);
                 AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/ICONS/INV_Misc_Statue_02:30:30:-18:0|tAll equipped slots", 0, 2, GetLocaleText(locale, "insert_set_name"), 0, true);
                 AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/ICONS/INV_Misc_Statue_02:30:30:-18:0|tAll slots except weapons", 0, 3, GetLocaleText(locale, "insert_set_name"), 0, true);
+                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/ICONS/INV_Misc_Statue_02:30:30:-18:0|tWeapons only", 0, 4, GetLocaleText(locale, "insert_set_name"), 0, true);
                 AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/ICONS/Ability_Spy:30:30:-18:0|t" + GetLocaleText(locale, "back"), EQUIPMENT_SLOT_END + 4, 0);
                 SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
             } break;
@@ -735,7 +726,7 @@ public:
             OnGossipSelect(player, creature, EQUIPMENT_SLOT_END, sender - 1);
             return true;
         }
-        if (action < 1 || action > 3)
+        if (action < 1 || action > 4)
             return true; // invalid save mode
         if (!sT->GetEnableSets())
         {
@@ -752,16 +743,19 @@ public:
                 if (sT->presetByName[player->GetGUID()].find(presetID) != sT->presetByName[player->GetGUID()].end())
                     continue; // Just remember never to use presetByName[pGUID][presetID] when finding etc!
 
-                int32 cost = 0;
                 std::map<uint8, uint32> items;
-                // Mode 1: transmogged slots only, Mode 2: all equipped, Mode 3: all except weapons
+                // Mode 1: transmogged slots only, Mode 2: all equipped, Mode 3: all except weapons, Mode 4: weapons only
                 for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
                 {
                     if (!sT->GetSlotName(slot, player->GetSession()))
                         continue;
 
-                    // Mode 3: exclude weapon slots
-                    if (action == 3 && (slot == EQUIPMENT_SLOT_MAINHAND || slot == EQUIPMENT_SLOT_OFFHAND || slot == EQUIPMENT_SLOT_RANGED))
+                    bool isWeaponSlot = (slot == EQUIPMENT_SLOT_MAINHAND || slot == EQUIPMENT_SLOT_OFFHAND || slot == EQUIPMENT_SLOT_RANGED);
+
+                    // Mode 3: exclude weapon slots, Mode 4: only weapon slots
+                    if (action == 3 && isWeaponSlot)
+                        continue;
+                    if (action == 4 && !isWeaponSlot)
                         continue;
 
                     if (Item* newItem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
@@ -781,20 +775,12 @@ public:
                                 continue;
                             if (!sT->SuitableForTransmogrification(player, temp))
                                 continue;
-                            cost += sT->GetSpecialPrice(temp);
                         }
                         items[slot] = entry;
                     }
                 }
                 if (items.empty())
-                    break; // no transmogrified items were found to be saved
-                cost *= sT->GetSetCostModifier();
-                cost += sT->GetSetCopperCost();
-                if (!player->HasEnoughMoney(cost))
-                {
-                    ChatHandler(player->GetSession()).SendNotification(LANG_ERR_TRANSMOG_NOT_ENOUGH_MONEY);
                     break;
-                }
 
                 std::ostringstream ss;
                 for (std::map<uint8, uint32>::iterator it = items.begin(); it != items.end(); ++it)
@@ -802,15 +788,12 @@ public:
                     ss << uint32(it->first) << ' ' << it->second << ' ';
                     sT->presetById[player->GetGUID()][presetID][it->first] = it->second;
                 }
-                sT->presetByName[player->GetGUID()][presetID] = name; // Make sure code doesnt mess up SQL!
+                sT->presetByName[player->GetGUID()][presetID] = name;
                 CharacterDatabase.Execute("REPLACE INTO `custom_transmogrification_sets` (`Owner`, `PresetID`, `SetName`, `SetData`) VALUES ({}, {}, \"{}\", \"{}\")", player->GetGUID().GetCounter(), uint32(presetID), name, ss.str());
-                if (cost)
-                    player->ModifyMoney(-cost);
                 break;
             }
         }
-        //OnGossipSelect(player, creature, EQUIPMENT_SLOT_END+4, 0);
-        CloseGossipMenuFor(player); // Wait for SetMoney to get fixed, issue #10053
+        CloseGossipMenuFor(player);
         return true;
     }
 #endif
@@ -835,12 +818,7 @@ public:
 
         if (oldItem)
         {
-            uint32 price = GetTransmogPrice(oldItem->GetTemplate());
-            std::ostringstream ss;
-            ss << std::endl;
-            if (sT->GetRequireToken())
-                ss << std::endl << std::endl << sT->GetTokenAmount() << " x " << sT->GetItemLink(sT->GetTokenEntry(), session);
-            std::string lineEnd = ss.str();
+            std::string lineEnd;
 
             std::unordered_map<uint32, std::string>::iterator searchStringIterator = sT->searchStringByPlayer.find(player->GetGUID().GetCounter());
             hasSearchString = !(searchStringIterator == sT->searchStringByPlayer.end());
@@ -877,7 +855,7 @@ public:
                     else
                     {
                         // Add invisible item entry
-                        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/ICONS/inv_misc_enggizmos_27:30:30:-18:0|t" + GetLocaleText(locale, "hide_slot"), slot, UINT_MAX, GetLocaleText(locale, "confirm_hide_item") + lineEnd, 0, false);
+                        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/ICONS/inv_misc_enggizmos_27:30:30:-18:0|t" + GetLocaleText(locale, "hide_slot"), slot, UINT_MAX, GetLocaleText(locale, "confirm_hide_item"), 0, false);
                     }
                 }
                 for (uint32 i = startValue; i <= endValue; i++)
@@ -888,7 +866,7 @@ public:
                         break;
                     }
                     Item* newItem = allowedItems.at(i);
-                    AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, sT->GetItemIcon(newItem->GetEntry(), 30, 30, -18, 0) + sT->GetItemLink(newItem, session), slot, newItem->GetEntry(), GetLocaleText(locale, "confirm_use_item") + sT->GetItemIcon(newItem->GetEntry(), 40, 40, -15, -10) + sT->GetItemLink(newItem, session) + lineEnd, price, false);
+                    AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, sT->GetItemIcon(newItem->GetEntry(), 30, 30, -18, 0) + sT->GetItemLink(newItem, session), slot, newItem->GetEntry(), GetLocaleText(locale, "confirm_use_item") + sT->GetItemIcon(newItem->GetEntry(), 40, 40, -15, -10) + sT->GetItemLink(newItem, session) + lineEnd, 0, false);
                 }
             }
             if (gossipPageNumber == EQUIPMENT_SLOT_END + 11)
@@ -948,18 +926,6 @@ public:
         return spoofedItems;
     }
 
-    static uint32 GetSpoofedItemPrice (uint32 itemId, ItemTemplate const* target)
-    {
-        switch (itemId)
-        {
-            case CUSTOM_HIDE_ITEM_VENDOR_ID:
-            case FALLBACK_HIDE_ITEM_VENDOR_ID:
-                return sT->HiddenTransmogIsFree ? 0 : sT->GetSpecialPrice(target);
-            default:
-                return 0;
-        }
-    }
-
     static void EncodeItemToPacket (WorldPacket& data, ItemTemplate const* proto, uint8& slot, uint32 price)
     {
         data << uint32(slot + 1);
@@ -983,15 +949,12 @@ public:
             CloseGossipMenuFor(player);
             return;
         }
-        ItemTemplate const* targetTemplate = targetItem->GetTemplate();
-
         std::vector<Item*> itemList = GetValidTransmogs(player, targetItem, false, "");
         std::vector<ItemTemplate const*> spoofedItems = GetSpoofedVendorItems(targetItem);
 
         uint32 itemCount = itemList.size();
         uint32 spoofCount = spoofedItems.size();
         uint32 totalItems = itemCount + spoofCount;
-        uint32 price = GetTransmogPrice(targetItem->GetTemplate());
 
         WorldPacket data(SMSG_LIST_INVENTORY, 8 + 1 + totalItems * 8 * 4);
         data << uint64(creature->GetGUID().GetRawValue());
@@ -1002,15 +965,12 @@ public:
 
         for (uint32 i = 0; i < spoofCount && count < MAX_VENDOR_ITEMS; ++i)
         {
-            EncodeItemToPacket (
-                data, spoofedItems[i], count,
-                GetSpoofedItemPrice(spoofedItems[i]->ItemId, targetTemplate)
-            );
+            EncodeItemToPacket(data, spoofedItems[i], count, 0);
         }
         for (uint32 i = 0; i < itemCount && count < MAX_VENDOR_ITEMS; ++i)
         {
             ItemTemplate const* _proto = itemList[i]->GetTemplate();
-            if (_proto) EncodeItemToPacket(data, _proto, count, price);
+            if (_proto) EncodeItemToPacket(data, _proto, count, 0);
         }
 
         data.put(count_pos, count);
