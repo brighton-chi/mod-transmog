@@ -382,14 +382,14 @@ std::vector<Item*> GetValidTransmogs (Player* player, Item* target, bool hasSear
     std::vector<Item*> allowedItems;
     if (!target) return allowedItems;
 
-    std::unordered_set<uint32> seenHashes;
+    std::unordered_set<uint32> seenDisplayIds;
 
     if (sT->GetUseCollectionSystem())
     {
         uint32 accountId = player->GetSession()->GetAccountId();
         if (sT->collectionCache.find(accountId) != sT->collectionCache.end())
         {
-            // Sort by item ID so the lowest ID wins when multiple items share the same appearance
+            // Sort by item ID so the lowest ID wins when multiple items share the same DisplayInfoID
             std::vector<uint32> sortedItemIds(sT->collectionCache[accountId].begin(), sT->collectionCache[accountId].end());
             std::sort(sortedItemIds.begin(), sortedItemIds.end());
 
@@ -399,21 +399,15 @@ std::vector<Item*> GetValidTransmogs (Player* player, Item* target, bool hasSear
                 if (!itemTemplate)
                     continue;
 
-                // Deduplicate by visual fingerprint hash
-                uint32 visualHash = 0;
-                auto hashIt = sT->visualHashCache.find(itemTemplate->DisplayInfoID);
-                if (hashIt != sT->visualHashCache.end())
-                    visualHash = hashIt->second;
-
-                if (visualHash && seenHashes.find(visualHash) != seenHashes.end())
+                // Deduplicate by DisplayInfoID — only show one item per display ID
+                if (seenDisplayIds.find(itemTemplate->DisplayInfoID) != seenDisplayIds.end())
                     continue;
 
                 Item* srcItem = Item::CreateItem(itemId, 1, 0);
                 if (ValidForTransmog(player, target, srcItem, hasSearch, searchTerm))
                 {
                     allowedItems.push_back(srcItem);
-                    if (visualHash)
-                        seenHashes.insert(visualHash);
+                    seenDisplayIds.insert(itemTemplate->DisplayInfoID);
                 }
             }
         }
@@ -426,19 +420,13 @@ std::vector<Item*> GetValidTransmogs (Player* player, Item* target, bool hasSear
                 return;
             ItemTemplate const* itemTemplate = srcItem->GetTemplate();
 
-            uint32 visualHash = 0;
-            auto hashIt = sT->visualHashCache.find(itemTemplate->DisplayInfoID);
-            if (hashIt != sT->visualHashCache.end())
-                visualHash = hashIt->second;
-
-            if (visualHash && seenHashes.find(visualHash) != seenHashes.end())
+            if (seenDisplayIds.find(itemTemplate->DisplayInfoID) != seenDisplayIds.end())
                 return;
 
             if (ValidForTransmog(player, target, srcItem, hasSearch, searchTerm))
             {
                 allowedItems.push_back(srcItem);
-                if (visualHash)
-                    seenHashes.insert(visualHash);
+                seenDisplayIds.insert(itemTemplate->DisplayInfoID);
             }
         };
 
@@ -1226,7 +1214,6 @@ public:
 #endif
 
         sT->LoadCollections();
-        sT->LoadVisualHashes();
     }
 };
 

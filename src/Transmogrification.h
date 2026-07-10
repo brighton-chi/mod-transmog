@@ -108,7 +108,6 @@ public:
     transmogMap entryMap; // entryMap[pGUID][iGUID] = entry
     transmogData dataMap; // dataMap[iGUID] = pGUID
     collectionCacheMap collectionCache;
-    std::unordered_map<uint32, uint32> visualHashCache; // DisplayInfoID -> visual fingerprint hash
     selectedSlotMap selectionCache;
 
 #ifdef PRESETS
@@ -189,7 +188,6 @@ public:
     bool CanNeverTransmog(ItemTemplate const* itemTemplate);
 
     void LoadConfig(bool reload); // thread unsafe
-    void LoadVisualHashes();
 
     std::string GetItemIcon(uint32 entry, uint32 width, uint32 height, int x, int y) const;
     std::string GetSlotIcon(uint8 slot, uint32 width, uint32 height, int x, int y) const;
